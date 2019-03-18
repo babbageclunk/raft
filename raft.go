@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"sync/atomic"
 	"time"
 
 	"github.com/armon/go-metrics"
@@ -253,16 +252,6 @@ func (r *Raft) runCandidate() {
 	r.logger.Printf("[DEBUG] raft: Votes needed: %d", votesNeeded)
 
 	for r.getState() == Candidate {
-		// Prioritise shutdown over everything else, otherwise we can
-		// prevent shutdown by always having a self-vote ready in
-		// voteCh.
-		select {
-		case <-r.shutdownCh:
-			r.logger.Printf("[XTIAN] received shutdown")
-			return
-		default:
-		}
-
 		select {
 		case rpc := <-r.rpcCh:
 			r.processRPC(rpc)
@@ -1409,9 +1398,6 @@ func (r *Raft) electSelf() <-chan *voteResult {
 	// Construct a function to ask for a vote
 	askPeer := func(peer Server) {
 		r.goFunc(func() {
-			id := atomic.AddUint64(&r.gofuncID, 1)
-			r.logger.Printf("[XTIAN] start electSelf %d", id)
-			defer r.logger.Printf("[XTIAN] stop electSelf %d", id)
 			defer metrics.MeasureSince([]string{"raft", "candidate", "electSelf"}, time.Now())
 			resp := &voteResult{voterID: peer.ID}
 			err := r.trans.RequestVote(peer.ID, peer.Address, req, &resp.RequestVoteResponse)

@@ -156,8 +156,6 @@ type Raft struct {
 	// is indexed by an artificial ID which is used for deregistration.
 	observersLock sync.RWMutex
 	observers     map[uint64]*Observer
-
-	gofuncID uint64
 }
 
 // BootstrapCluster initializes a server's storage with the given cluster
@@ -797,13 +795,10 @@ func (r *Raft) Shutdown() Future {
 	defer r.shutdownLock.Unlock()
 
 	if !r.shutdown {
-		r.logger.Printf("[XTIAN] shutting down")
 		close(r.shutdownCh)
 		r.shutdown = true
 		r.setState(Shutdown)
 		return &shutdownFuture{r}
-	} else {
-		r.logger.Printf("[XTIAN] already shut down")
 	}
 
 	// avoid closing transport twice
